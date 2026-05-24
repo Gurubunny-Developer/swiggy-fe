@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import TrackingMap from '../components/TrackingMap';
-import { CheckCircle2, Clock, MapPin, ClipboardList, RefreshCw, ExternalLink } from 'lucide-react';
+import { CheckCircle2, Clock, MapPin, ClipboardList, ExternalLink } from 'lucide-react';
 
 export const OrderTracking = () => {
   const { id } = useParams();
@@ -12,24 +12,24 @@ export const OrderTracking = () => {
 
   // Poll order status every 3 seconds
   useEffect(() => {
+    async function fetchOrderDetails() {
+      try {
+        const res = await fetch(`${API_BASE}/orders/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setOrder(data);
+        }
+      } catch (err) {
+        console.error('Error fetching order status:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
     fetchOrderDetails();
     const interval = setInterval(fetchOrderDetails, 3000);
     return () => clearInterval(interval);
-  }, [id]);
-
-  const fetchOrderDetails = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/orders/${id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setOrder(data);
-      }
-    } catch (err) {
-      console.error('Error fetching order status:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [id, API_BASE]);
 
   if (loading) {
     return (

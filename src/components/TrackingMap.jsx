@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { ChefHat, Home, MapPin, Truck } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChefHat, Home, Truck } from 'lucide-react';
 
 export const TrackingMap = ({ status }) => {
   // Translate order status into path percentage for the delivery rider
@@ -7,7 +7,7 @@ export const TrackingMap = ({ status }) => {
   // 30% - Preparing
   // 75% - Out for Delivery
   // 100% - Delivered
-  const getProgressPercentage = () => {
+  const pct = useMemo(() => {
     switch (status) {
       case 'Confirmed': return 5;
       case 'Preparing': return 35;
@@ -15,12 +15,6 @@ export const TrackingMap = ({ status }) => {
       case 'Delivered': return 100;
       default: return 5;
     }
-  };
-
-  const [pct, setPct] = useState(getProgressPercentage());
-
-  useEffect(() => {
-    setPct(getProgressPercentage());
   }, [status]);
 
   // SVG dimensions: 600x300
@@ -31,24 +25,22 @@ export const TrackingMap = ({ status }) => {
   // Calculate coordinates of point on path based on percentage
   // Since we cannot run complex getPointAtLength in standard SSR/React easily without DOM access,
   // we will approximate or let a DOM reference fetch the point.
-  const [riderCoords, setRiderCoords] = useState({ x: 120, y: 150 });
   const [pathRef, setPathRef] = useState(null);
 
-  useEffect(() => {
-    if (pathRef) {
-      try {
-        const totalLength = pathRef.getTotalLength();
-        const lengthAtPct = totalLength * (pct / 100);
-        const point = pathRef.getPointAtLength(lengthAtPct);
-        setRiderCoords({ x: point.x, y: point.y });
-      } catch (err) {
-        // Fallback approximation in case SVG is not mounted
-        const ratio = pct / 100;
-        const x = 120 + (480 - 120) * ratio;
-        // Winding sine wave approximation
-        const y = 150 + Math.sin(ratio * Math.PI * 2.5) * 50;
-        setRiderCoords({ x, y });
-      }
+  const riderCoords = useMemo(() => {
+    if (!pathRef) {
+      return { x: 120, y: 150 };
+    }
+    try {
+      const totalLength = pathRef.getTotalLength();
+      const lengthAtPct = totalLength * (pct / 100);
+      const point = pathRef.getPointAtLength(lengthAtPct);
+      return { x: point.x, y: point.y };
+    } catch {
+      const ratio = pct / 100;
+      const x = 120 + (480 - 120) * ratio;
+      const y = 150 + Math.sin(ratio * Math.PI * 2.5) * 50;
+      return { x, y };
     }
   }, [pct, pathRef]);
 

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { ShoppingBag, MapPin, BadgePercent, ChevronRight, Check, Trash2, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ShoppingBag, MapPin, BadgePercent, Check, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export const Checkout = () => {
-  const { user, cart, updateQuantity, getCartTotal, getCartCount, placeOrder, loading } = useApp();
+  const { user, cart, updateQuantity, getCartTotal, placeOrder, loading } = useApp();
   
   // Form Address State
   const [houseNo, setHouseNo] = useState('');

@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { ShoppingBag, User, MapPin, ChevronDown, LogOut, Search, Flame, X, Compass, KeyRound, Mail, UserCheck } from 'lucide-react';
+import { ShoppingBag, User, MapPin, ChevronDown, LogOut, Search, Flame, X, KeyRound, Mail, UserCheck } from 'lucide-react';
 
 export const Navbar = ({ onSearch, searchQuery }) => {
   const { user, logout, login, signup, getCartCount, getCartTotal, currentLocation, setCurrentLocation } = useApp();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [authSection, setAuthSection] = useState('user');
+  const [restaurantId, setRestaurantId] = useState('');
   
   // Auth Form State
   const [email, setEmail] = useState('');
@@ -29,16 +31,27 @@ export const Navbar = ({ onSearch, searchQuery }) => {
     setLoading(true);
 
     try {
-      if (isSignUp) {
-        await signup(name, email, password);
+      if (authSection === 'admin') {
+        await login(email, password, 'admin');
+      } else if (authSection === 'restaurant') {
+        if (isSignUp) {
+          await signup(name, email, password, 'restaurant', restaurantId);
+        } else {
+          await login(email, password, 'restaurant');
+        }
       } else {
-        await login(email, password);
+        if (isSignUp) {
+          await signup(name, email, password, 'user');
+        } else {
+          await login(email, password, 'user');
+        }
       }
       setShowAuthModal(false);
       // Reset forms
       setEmail('');
       setPassword('');
       setName('');
+      setRestaurantId('');
     } catch (err) {
       setAuthError(err.message || 'Authentication failed');
     } finally {
@@ -108,17 +121,25 @@ export const Navbar = ({ onSearch, searchQuery }) => {
           <div className="nav-right">
             {/* User Account */}
             {user ? (
-              <div className="user-profile-menu">
-                <div className="user-info">
-                  <div className="avatar-placeholder">
-                    {user.name.charAt(0).toUpperCase()}
+              <>
+                <div className="user-profile-menu">
+                  <div className="user-info">
+                    <div className="avatar-placeholder">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="user-name">{user.name.split(' ')[0]}</span>
                   </div>
-                  <span className="user-name">{user.name.split(' ')[0]}</span>
+                  <button className="logout-btn" onClick={logout} title="Log Out">
+                    <LogOut className="logout-icon" />
+                  </button>
                 </div>
-                <button className="logout-btn" onClick={logout} title="Log Out">
-                  <LogOut className="logout-icon" />
-                </button>
-              </div>
+                {user.role === 'restaurant' && (
+                  <a href="/restaurant-panel" className="panel-nav-link">Restaurant Panel</a>
+                )}
+                {user.role === 'admin' && (
+                  <a href="/admin" className="panel-nav-link">Admin Panel</a>
+                )}
+              </>
             ) : (
               <button className="sign-in-btn" onClick={() => setShowAuthModal(true)}>
                 <User className="nav-icon" />
@@ -148,10 +169,44 @@ export const Navbar = ({ onSearch, searchQuery }) => {
               <X />
             </button>
             
+            <div className="auth-tabs">
+              <button
+                type="button"
+                className={`auth-tab ${authSection === 'user' ? 'active' : ''}`}
+                onClick={() => { setAuthSection('user'); setIsSignUp(false); setAuthError(''); }}
+              >
+                Customer
+              </button>
+              <button
+                type="button"
+                className={`auth-tab ${authSection === 'restaurant' ? 'active' : ''}`}
+                onClick={() => { setAuthSection('restaurant'); setIsSignUp(false); setAuthError(''); }}
+              >
+                Restaurant
+              </button>
+              <button
+                type="button"
+                className={`auth-tab ${authSection === 'admin' ? 'active' : ''}`}
+                onClick={() => { setAuthSection('admin'); setIsSignUp(false); setAuthError(''); }}
+              >
+                Admin
+              </button>
+            </div>
+
             <div className="modal-header">
               <Flame className="modal-logo" />
-              <h2>{isSignUp ? 'Join SwiggyCraft' : 'Welcome Back'}</h2>
-              <p>{isSignUp ? 'Create an account to order delicious food' : 'Sign in to track your orders and checkout faster'}</p>
+              <h2>{authSection === 'admin' ? 'Admin Sign In' : authSection === 'restaurant' ? (isSignUp ? 'Restaurant Signup' : 'Restaurant Login') : (isSignUp ? 'Join SwiggyCraft' : 'Welcome Back')}</h2>
+              <p>
+                {authSection === 'admin'
+                  ? 'Admin access only. Please sign in with your admin credentials.'
+                  : authSection === 'restaurant'
+                    ? isSignUp
+                      ? 'Create a restaurant manager account using your restaurant ID.'
+                      : 'Sign in to manage your restaurant orders.'
+                    : isSignUp
+                      ? 'Create an account to order delicious food.'
+                      : 'Sign in to track your orders and checkout faster.'}
+              </p>
             </div>
 
             {authError && <div className="auth-error-msg">{authError}</div>}
@@ -166,6 +221,18 @@ export const Navbar = ({ onSearch, searchQuery }) => {
                     value={name} 
                     onChange={(e) => setName(e.target.value)}
                     required 
+                  />
+                </div>
+              )}
+              {authSection === 'restaurant' && isSignUp && (
+                <div className="form-group">
+                  <label><MapPin className="form-icon" /> Restaurant ID</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. r1"
+                    value={restaurantId}
+                    onChange={(e) => setRestaurantId(e.target.value)}
+                    required
                   />
                 </div>
               )}
@@ -197,12 +264,14 @@ export const Navbar = ({ onSearch, searchQuery }) => {
               </button>
             </form>
 
-            <div className="auth-toggle-msg">
-              {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-              <span onClick={() => { setIsSignUp(!isSignUp); setAuthError(''); }} className="toggle-link">
-                {isSignUp ? 'Sign In Now' : 'Create One Now'}
-              </span>
-            </div>
+            {authSection !== 'admin' && (
+              <div className="auth-toggle-msg">
+                {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+                <span onClick={() => { setIsSignUp(!isSignUp); setAuthError(''); }} className="toggle-link">
+                  {isSignUp ? 'Sign In Now' : 'Create One Now'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}

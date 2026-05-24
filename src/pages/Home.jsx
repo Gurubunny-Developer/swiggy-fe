@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import RestaurantCard from '../components/RestaurantCard';
-import { Flame, Compass, Filter, Search, RotateCcw, Award } from 'lucide-react';
+import { Flame, Compass, RotateCcw } from 'lucide-react';
 
 const CUISINES = [
   { name: 'Biryani', image: 'https://images.unsplash.com/photo-1633945274405-b6c8069047b0?w=150&auto=format&fit=crop&q=80' },
@@ -15,7 +15,6 @@ const CUISINES = [
 export const Home = ({ searchQuery }) => {
   const { API_BASE } = useApp();
   const [restaurants, setRestaurants] = useState([]);
-  const [filteredRestaurants, setFilteredRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Filtering States
@@ -25,71 +24,63 @@ export const Home = ({ searchQuery }) => {
   const [sortBy, setSortBy] = useState('default'); // 'default', 'cost-asc', 'cost-desc', 'delivery-asc'
 
   useEffect(() => {
-    fetchRestaurants();
-  }, []);
-
-  const fetchRestaurants = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/restaurants`);
-      const data = await res.json();
-      setRestaurants(data);
-      setFilteredRestaurants(data);
-    } catch (err) {
-      console.error('Failed to fetch restaurants:', err);
-    } finally {
-      setLoading(false);
+    async function fetchRestaurants() {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/restaurants`);
+        const data = await res.json();
+        setRestaurants(data);
+      } catch (err) {
+        console.error('Failed to fetch restaurants:', err);
+      } finally {
+        setLoading(false);
+      }
     }
-  };
 
-  // Apply filters and searches
-  useEffect(() => {
+    fetchRestaurants();
+  }, [API_BASE]);
+
+  const filteredRestaurants = useMemo(() => {
     let result = [...restaurants];
 
-    // 1. Search Query (matches restaurant name, cuisines, or menu items)
     if (searchQuery) {
       const query = searchQuery.toLowerCase().trim();
       result = result.filter(r => 
         r.name.toLowerCase().includes(query) ||
         r.cuisines.some(c => c.toLowerCase().includes(query)) ||
-        r.menu.some(cat => 
+        (r.menu?.some(cat => 
           cat.items.some(item => 
             item.name.toLowerCase().includes(query) || 
             item.description.toLowerCase().includes(query)
           )
-        )
+        ) ?? false)
       );
     }
 
-    // 2. Cuisine Carousel Selection
     if (selectedCuisine) {
       result = result.filter(r => 
         r.cuisines.some(c => c.toLowerCase() === selectedCuisine.toLowerCase())
       );
     }
 
-    // 3. Veg filter
     if (onlyVeg) {
       result = result.filter(r => r.isVeg === true);
     }
 
-    // 4. Rating filter (4.5+)
     if (topRated) {
       result = result.filter(r => r.rating >= 4.5);
     }
 
-    // 5. Sorting
     if (sortBy === 'cost-asc') {
       result.sort((a, b) => a.costForTwo - b.costForTwo);
     } else if (sortBy === 'cost-desc') {
       result.sort((a, b) => b.costForTwo - a.costForTwo);
     } else if (sortBy === 'delivery-asc') {
-      // Parse integers out of deliveryTime strings e.g. "20-25 mins" -> 20
       const getMinTime = (timeStr) => parseInt(timeStr.split('-')[0], 10) || 999;
       result.sort((a, b) => getMinTime(a.deliveryTime) - getMinTime(b.deliveryTime));
     }
 
-    setFilteredRestaurants(result);
+    return result;
   }, [searchQuery, selectedCuisine, onlyVeg, topRated, sortBy, restaurants]);
 
   const clearFilters = () => {

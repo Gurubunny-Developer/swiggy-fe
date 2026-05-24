@@ -1,14 +1,25 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useEffect } from 'react';
 
 const AppContext = createContext(null);
 
-const API_BASE = 'http://localhost:5000/api';
+// Use Vercel or production API base when provided, otherwise fall back to local backend
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
 
 export const AppProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [cart, setCart] = useState([]);
-  const [cartRestaurantId, setCartRestaurantId] = useState(null);
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('swiggy_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+  const [token, setToken] = useState(() => localStorage.getItem('swiggy_token'));
+  const [cart, setCart] = useState(() => {
+    const savedCart = localStorage.getItem('swiggy_cart');
+    return savedCart ? JSON.parse(savedCart) : [];
+  });
+  const [cartRestaurantId, setCartRestaurantId] = useState(() => {
+    const savedCartRestId = localStorage.getItem('swiggy_cart_restaurant');
+    return savedCartRestId || null;
+  });
   const [currentLocation, setCurrentLocation] = useState({
     name: 'Indiranagar, Bengaluru',
     lat: 12.9715987,
@@ -19,25 +30,6 @@ export const AppProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Load auth and cart from localStorage on mount
-  useEffect(() => {
-    const savedToken = localStorage.getItem('swiggy_token');
-    const savedUser = localStorage.getItem('swiggy_user');
-    const savedCart = localStorage.getItem('swiggy_cart');
-    const savedCartRestId = localStorage.getItem('swiggy_cart_restaurant');
-
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-    }
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
-    }
-    if (savedCartRestId) {
-      setCartRestaurantId(savedCartRestId);
-    }
-  }, []);
-
   // Persist cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('swiggy_cart', JSON.stringify(cart));
@@ -45,18 +37,19 @@ export const AppProvider = ({ children }) => {
   }, [cart, cartRestaurantId]);
 
   // Auth Operations
-  const login = async (email, password) => {
+  const login = async (email, password, role = 'user') => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
+      const route = role === 'restaurant' ? '/auth/restaurant/login' : role === 'admin' ? '/auth/admin/login' : '/auth/login';
+      const res = await fetch(`${API_BASE}${route}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Login failed');
-      
+
       setToken(data.token);
       setUser(data.user);
       localStorage.setItem('swiggy_token', data.token);
@@ -70,14 +63,19 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const signup = async (name, email, password) => {
+  const signup = async (name, email, password, role = 'user', restaurantId = null) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/auth/signup`, {
+      const route = role === 'restaurant' ? '/auth/restaurant/signup' : '/auth/signup';
+      const body = { name, email, password };
+      if (role === 'restaurant') {
+        body.restaurantId = restaurantId;
+      }
+      const res = await fetch(`${API_BASE}${route}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
+        body: JSON.stringify(body)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Signup failed');
@@ -175,6 +173,7 @@ export const AppProvider = ({ children }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
+          restaurantId: cartRestaurantId,
           items: cart,
           total,
           address

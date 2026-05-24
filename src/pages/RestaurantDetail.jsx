@@ -1,39 +1,40 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Star, Clock, Heart, Share2, ShieldCheck, ArrowRight, ShoppingCart, Plus, Minus } from 'lucide-react';
 
 export const RestaurantDetail = () => {
   const { id } = useParams();
-  const { API_BASE, cart, addToCart, updateQuantity, getCartCount, getCartTotal, cartRestaurantId } = useApp();
+  const { API_BASE, cart, addToCart, updateQuantity, getCartCount, getCartTotal, cartRestaurantId, clearCart } = useApp();
   
   const [restaurant, setRestaurant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [onlyVegMenu, setOnlyVegMenu] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [alertDiffRestaurant, setAlertDiffRestaurant] = useState(false);
+  const [pendingItem, setPendingItem] = useState(null);
 
   useEffect(() => {
-    fetchRestaurantDetail();
-  }, [id]);
-
-  const fetchRestaurantDetail = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/restaurants/${id}`);
-      if (res.ok) {
-        const data = await res.ok ? await res.json() : null;
-        setRestaurant(data);
-        if (data && data.menu.length > 0) {
-          setSelectedCategory(data.menu[0].category);
+    async function fetchRestaurantDetail() {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/restaurants/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setRestaurant(data);
+          if (data?.menu?.length > 0) {
+            setSelectedCategory(data.menu[0].category);
+          }
         }
+      } catch (err) {
+        console.error('Failed to fetch restaurant details:', err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Failed to fetch restaurant details:', err);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    fetchRestaurantDetail();
+  }, [id, API_BASE]);
 
   if (loading) {
     return (
@@ -61,6 +62,7 @@ export const RestaurantDetail = () => {
   const handleAddItem = (item) => {
     const success = addToCart(item, restaurant.id);
     if (!success) {
+      setPendingItem(item);
       setAlertDiffRestaurant(true);
     }
   };
@@ -224,15 +226,12 @@ export const RestaurantDetail = () => {
               <button 
                 className="reset-search-btn" 
                 onClick={() => {
-                  // Direct clear cart and add
-                  const activeItem = restaurant.menu
-                    .flatMap(cat => cat.items)
-                    .find(dish => getItemQuantity(dish.id) > 0 || dish.id); // fallback to target
-                  localStorage.removeItem('swiggy_cart');
-                  localStorage.removeItem('swiggy_cart_restaurant');
-                  addToCart(activeItem, restaurant.id);
+                  if (pendingItem) {
+                    clearCart();
+                    addToCart(pendingItem, restaurant.id);
+                    setPendingItem(null);
+                  }
                   setAlertDiffRestaurant(false);
-                  window.location.reload();
                 }}
               >
                 Yes, Replace

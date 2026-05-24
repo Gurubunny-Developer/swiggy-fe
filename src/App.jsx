@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import Navbar from './components/Navbar';
@@ -7,6 +7,8 @@ import RestaurantDetail from './pages/RestaurantDetail';
 import Checkout from './pages/Checkout';
 import OrderTracking from './pages/OrderTracking';
 import Dashboard from './pages/Dashboard';
+import RestaurantPanel from './pages/RestaurantPanel';
+import AdminPanel from './pages/AdminPanel';
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,6 +27,8 @@ function App() {
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/tracking/:id" element={<OrderTracking />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/restaurant-panel" element={<RestaurantPanel />} />
+              <Route path="/admin" element={<AdminPanel />} />
             </Routes>
           </main>
 

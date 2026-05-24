@@ -1,20 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ChefHat, Truck, Check, RefreshCw, Layers, ShieldCheck } from 'lucide-react';
 
 export const Dashboard = () => {
-  const { API_BASE, orders, fetchOrders } = useApp();
+  const { API_BASE } = useApp();
   const [localOrders, setLocalOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null); // stores orderId being updated
 
-  useEffect(() => {
-    loadOrders();
-    const interval = setInterval(loadOrders, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/orders`);
       if (res.ok) {
@@ -26,7 +20,13 @@ export const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_BASE]);
+
+  useEffect(() => {
+    loadOrders(); // eslint-disable-line react-hooks/set-state-in-effect
+    const interval = setInterval(loadOrders, 3000);
+    return () => clearInterval(interval);
+  }, [loadOrders]);
 
   const updateStatus = async (orderId, newStatus) => {
     setActionLoading(orderId);
