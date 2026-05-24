@@ -3,8 +3,9 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const AppContext = createContext(null);
 
-// Use Vercel or production API base when provided, otherwise fall back to local backend
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
+// Use Vercel or production API base when provided.
+// In local development, fall back to the local backend.
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? 'http://localhost:5000/api' : '');
 
 export const AppProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
